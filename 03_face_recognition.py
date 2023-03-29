@@ -33,10 +33,12 @@ while True:
         gray,
         scaleFactor = 1.2,
         minNeighbors = 5,
-        minSize = (int(minW), int(minH)),
+        minSize=(20,20)
+        #minSize = (int(minW), int(minH)),
        )
 
     for(x,y,w,h) in faces:
+        print(f'face:{(x,y)}')
         cv2.rectangle(img, (x,y), (x+w,y+h), (0,255,0), 2)
         id, confidence = recognizer.predict(gray[y:y+h,x:x+w])
 
