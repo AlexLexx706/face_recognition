@@ -2,10 +2,9 @@ import cv2
 import numpy as np
 import os
 
-os.chdir("/home/pi/opencv-3.4.1/data/haarcascades")
 recognizer = cv2.face.LBPHFaceRecognizer_create()
-recognizer.read('/home/pi/FaceRecognition/trainer/trainer.yml')
-cascadePath = "/home/pi/opencv-3.4.1/data/haarcascades/haarcascade_frontalface_default.xml"
+recognizer.read('./trainer/trainer.yml')
+cascadePath = "./haarcascade_frontalface_default.xml"
 faceCascade = cv2.CascadeClassifier(cascadePath);
 
 font = cv2.FONT_HERSHEY_SIMPLEX
@@ -14,7 +13,7 @@ font = cv2.FONT_HERSHEY_SIMPLEX
 id = 0
 
 # names related to ids: example ==> KUNAL: id=1,  etc
-names = ['None', 'Kunal', 'Kaushik', 'Atharv', 'Z', 'W']
+names = ['Alex', 'Agniia']
 
 # Initialize and start realtime video capture
 cam = cv2.VideoCapture(0)
