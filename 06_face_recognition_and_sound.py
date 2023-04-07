@@ -60,54 +60,66 @@ def main():
     cam = cv2.VideoCapture(0)
     cam.set(3, 640)  # set video widht
     cam.set(4, 480)  # set video height
-    p_time = time.time()
+    past_fps_time = time.time()
     frames = 0
+
+
+    process_timeout = 1./30
+    past_process_time = time.time()
+    readed_frames = 0
 
     while True:
         ret, img = cam.read()
-        # img = cv2.flip(img, -1) # Flip vertically
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        readed_frames +=1
+        cur_time = time.time()
 
-        faces = faceCascade.detectMultiScale(
-            gray,
-            scaleFactor=1.2,
-            minNeighbors=1,
-            minSize=(100, 100)
-        )
+        dt = cur_time - past_process_time
+        if (cur_time - past_process_time) >= process_timeout:
+            past_process_time = cur_time - (dt % process_timeout)
 
-        for (x, y, w, h) in faces:
-            print(f'face:{(x,y)}')
+            # img = cv2.flip(img, -1) # Flip vertically
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+            faces = faceCascade.detectMultiScale(
+                gray,
+                scaleFactor=1.2,
+                minNeighbors=1,
+                minSize=(100, 100)
+            )
+
+            for (x, y, w, h) in faces:
+                # print(f'face:{(x,y)}')
+
+                if SHOW_VIEW:
+                    cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+                with recognition_state.get_lock():
+                    if not recognition_state.value:
+                        recognition_state.value = 1
+                        image_queue.put((gray[y:y+h, x:x+w], (x, y, w, h)))
+
+                # name = "unknown"
+                # conf_str = "  0%"
+
+                # if SHOW_VIEW:
+                #     cv2.putText(img, name, (x+5, y-5), font, 1, (255, 255, 255), 2)
+                #     cv2.putText(img, conf_str, (x+5, y+h-5),
+                #                 font, 1, (255, 255, 0), 1)
 
             if SHOW_VIEW:
-                cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                cv2.imshow('camera', img)
+            frames += 1
 
-            # with recognition_state.get_lock():
-            #     if not recognition_state.value:
-            #         recognition_state.value = 1
-            #         image_queue.put((gray[y:y+h, x:x+w], (x, y, w, h)))
+            if SHOW_VIEW:
+                k = cv2.waitKey(1) & 0xff  # Press 'ESC' for exiting video
+                if k == 27:
+                    break
 
-            # name = "unknown"
-            # conf_str = "  0%"
-
-            # if SHOW_VIEW:
-            #     cv2.putText(img, name, (x+5, y-5), font, 1, (255, 255, 255), 2)
-            #     cv2.putText(img, conf_str, (x+5, y+h-5),
-            #                 font, 1, (255, 255, 0), 1)
-
-        if SHOW_VIEW:
-            cv2.imshow('camera', img)
-
-        c_time = time.time()
-        if c_time - p_time >= 1:
-            print(f'fps:{frames}')
-            p_time = c_time
+        if cur_time - past_fps_time >= 1:
+            print(f'fps:{frames} reads:{readed_frames}')
+            past_fps_time = cur_time
             frames = 0
-        frames += 1
-
-        if SHOW_VIEW:
-            k = cv2.waitKey(10) & 0xff  # Press 'ESC' for exiting video
-            if k == 27:
-                break
+            readed_frames = 0
 
     # Do a bit of cleanup
     print("\n [INFO] Exiting Program and cleanup stuff")
