@@ -7,7 +7,7 @@ import queue
 import ctypes
 import time
 
-SHOW_VIEW = True
+SHOW_VIEW = False
 
 
 def recognize_face(queue, recognition_state):
@@ -80,10 +80,11 @@ def main():
 
             if SHOW_VIEW:
                 cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
-            with recognition_state.get_lock():
-                if not recognition_state.value:
-                    recognition_state.value = 1
-                    image_queue.put((gray[y:y+h, x:x+w], (x, y, w, h)))
+
+            # with recognition_state.get_lock():
+            #     if not recognition_state.value:
+            #         recognition_state.value = 1
+            #         image_queue.put((gray[y:y+h, x:x+w], (x, y, w, h)))
 
             # name = "unknown"
             # conf_str = "  0%"
@@ -103,9 +104,10 @@ def main():
             frames = 0
         frames += 1
 
-        k = cv2.waitKey(10) & 0xff  # Press 'ESC' for exiting video
-        if k == 27:
-            break
+        if SHOW_VIEW:
+            k = cv2.waitKey(10) & 0xff  # Press 'ESC' for exiting video
+            if k == 27:
+                break
 
     # Do a bit of cleanup
     print("\n [INFO] Exiting Program and cleanup stuff")
