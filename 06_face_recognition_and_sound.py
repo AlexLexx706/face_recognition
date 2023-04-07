@@ -60,11 +60,14 @@ def main():
     cam = cv2.VideoCapture(0)
     cam.set(3, 640)  # set video widht
     cam.set(4, 480)  # set video height
+    
+    cam_fps = 10
+    cam.set(cv2.CAP_PROP_FPS, cam_fps)
     past_fps_time = time.time()
     frames = 0
 
 
-    process_timeout = 1./30
+    process_timeout = 1./cam_fps
     past_process_time = time.time()
     readed_frames = 0
 
