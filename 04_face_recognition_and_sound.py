@@ -7,6 +7,9 @@ import queue
 import ctypes
 import time
 
+SHOW_VIEW = False
+
+
 def play_sound(queue, sound_play):
     wave_hi_alex = sa.WaveObject.from_wave_file("sounds/hi_alex.wav")
     wave_hi_agniia = sa.WaveObject.from_wave_file("sounds/hi_agniia.wav")
@@ -23,18 +26,16 @@ def play_sound(queue, sound_play):
         elif name == 'Anna':
             wave_hi_anna.play().wait_done()
 
-        time.sleep(5)
         with sound_play.get_lock():
             sound_play.value = 0
-        
 
 
 def main():
     sound_queue = multiprocessing.Queue(1)
     sound_play = multiprocessing.Value(ctypes.c_int, 0, lock=True)
-    sound_proc = multiprocessing.Process(target=play_sound, args=(sound_queue, sound_play))
+    sound_proc = multiprocessing.Process(
+        target=play_sound, args=(sound_queue, sound_play))
     sound_proc.start()
-
 
     recognizer = cv2.face.LBPHFaceRecognizer_create()
     recognizer.read('./trainer/trainer.yml')
@@ -50,6 +51,8 @@ def main():
     cam = cv2.VideoCapture(0)
     cam.set(3, 640)  # set video widht
     cam.set(4, 480)  # set video height
+    p_time = time.time()
+    frames = 0
 
     while True:
         ret, img = cam.read()
@@ -60,14 +63,16 @@ def main():
             gray,
             scaleFactor=1.2,
             minNeighbors=1,
-            minSize=(100,100)
+            minSize=(100, 100)
         )
 
         for (x, y, w, h) in faces:
             print(f'face:{(x,y)}')
-            cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
-            
-            id, confidence = 0, 50#recognizer.predict(gray[y:y+h, x:x+w])
+
+            if SHOW_VIEW:
+                cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+            id, confidence = recognizer.predict(gray[y:y+h, x:x+w])
             name = "unknown"
             conf_str = "  0%"
 
@@ -81,11 +86,20 @@ def main():
                         sound_play.value = 1
                         sound_queue.put(name)
 
-            cv2.putText(img, name, (x+5, y-5), font, 1, (255, 255, 255), 2)
-            cv2.putText(img, conf_str, (x+5, y+h-5),
-                        font, 1, (255, 255, 0), 1)
+            if SHOW_VIEW:
+                cv2.putText(img, name, (x+5, y-5), font, 1, (255, 255, 255), 2)
+                cv2.putText(img, conf_str, (x+5, y+h-5),
+                            font, 1, (255, 255, 0), 1)
 
-        cv2.imshow('camera', img)
+        if SHOW_VIEW:
+            cv2.imshow('camera', img)
+
+        c_time = time.time()
+        if c_time - p_time >= 1:
+            print(f'fps:{frames}')
+            p_time = c_time
+            frames = 0
+        frames += 1
 
         k = cv2.waitKey(10) & 0xff  # Press 'ESC' for exiting video
         if k == 27:
@@ -95,5 +109,7 @@ def main():
     print("\n [INFO] Exiting Program and cleanup stuff")
     cam.release()
     cv2.destroyAllWindows()
+
+
 if __name__ == '__main__':
     main()
