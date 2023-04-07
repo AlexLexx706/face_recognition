@@ -56,19 +56,18 @@ def main():
 
     font = cv2.FONT_HERSHEY_SIMPLEX
 
+    cam_fps = 10
+
     # Initialize and start realtime video capture
     cam = cv2.VideoCapture(0)
-    cam.set(3, 640)  # set video widht
-    cam.set(4, 480)  # set video height
-    
-    cam_fps = 10
+    cam.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # set video widht
+    cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)  # set video height
     cam.set(cv2.CAP_PROP_FPS, cam_fps)
+
     past_fps_time = time.time()
     frames = 0
-
-
     process_timeout = 1./cam_fps
-    past_process_time = time.time()
+    past_process_time = past_fps_time
     readed_frames = 0
 
     while True:
@@ -77,7 +76,7 @@ def main():
         cur_time = time.time()
 
         dt = cur_time - past_process_time
-        if (cur_time - past_process_time) >= process_timeout:
+        if dt >= process_timeout:
             past_process_time = cur_time - (dt % process_timeout)
 
             # img = cv2.flip(img, -1) # Flip vertically
