@@ -40,9 +40,10 @@ def recognize_face(queue, recognition_state):
             elif name == 'Anna':
                 wave_hi_anna.play().wait_done()
 
-        #unlock recognition state
+        # unlock recognition state
         with recognition_state.get_lock():
             recognition_state.value = 0
+
 
 def main():
     image_queue = multiprocessing.Queue(1)
@@ -60,20 +61,19 @@ def main():
     cam = cv2.VideoCapture(0)
     cam.set(3, 640)  # set video widht
     cam.set(4, 480)  # set video height
-    
+
     cam_fps = 10
     cam.set(cv2.CAP_PROP_FPS, cam_fps)
     past_fps_time = time.time()
     frames = 0
-
 
     process_timeout = 1./cam_fps
     past_process_time = time.time()
     readed_frames = 0
 
     while True:
-        ret, img = cam.read()
-        readed_frames +=1
+        _, img = cam.read()
+        readed_frames += 1
         cur_time = time.time()
 
         dt = cur_time - past_process_time
@@ -96,18 +96,11 @@ def main():
                 if SHOW_VIEW:
                     cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
+                # send data to recognition
                 with recognition_state.get_lock():
                     if not recognition_state.value:
                         recognition_state.value = 1
                         image_queue.put((gray[y:y+h, x:x+w], (x, y, w, h)))
-
-                # name = "unknown"
-                # conf_str = "  0%"
-
-                # if SHOW_VIEW:
-                #     cv2.putText(img, name, (x+5, y-5), font, 1, (255, 255, 255), 2)
-                #     cv2.putText(img, conf_str, (x+5, y+h-5),
-                #                 font, 1, (255, 255, 0), 1)
 
             if SHOW_VIEW:
                 cv2.imshow('camera', img)
