@@ -1,9 +1,6 @@
 import cv2
-import numpy as np
-import os
 import simpleaudio as sa
 import multiprocessing
-import queue
 import ctypes
 import time
 
@@ -40,9 +37,10 @@ def recognize_face(queue, recognition_state):
             elif name == 'Anna':
                 wave_hi_anna.play().wait_done()
 
-        #unlock recognition state
+        # unlock recognition state
         with recognition_state.get_lock():
             recognition_state.value = 0
+
 
 def main():
     image_queue = multiprocessing.Queue(1)
@@ -53,8 +51,6 @@ def main():
 
     faceCascade = cv2.CascadeClassifier(
         "./haarcascade_frontalface_default.xml")
-
-    font = cv2.FONT_HERSHEY_SIMPLEX
 
     cam_fps = 10
 
@@ -71,15 +67,13 @@ def main():
     readed_frames = 0
 
     while True:
-        ret, img = cam.read()
-        readed_frames +=1
+        _, img = cam.read()
+        readed_frames += 1
         cur_time = time.time()
 
-        dt = cur_time - past_process_time
-        if dt >= process_timeout:
-            past_process_time = cur_time - (dt % process_timeout)
-
-            # img = cv2.flip(img, -1) # Flip vertically
+        duration = cur_time - past_process_time
+        if duration >= process_timeout:
+            past_process_time = cur_time - (duration % process_timeout)
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
             faces = faceCascade.detectMultiScale(
@@ -90,23 +84,16 @@ def main():
             )
 
             for (x, y, w, h) in faces:
-                # print(f'face:{(x,y)}')
+                print(f'face:{(x,y)}')
 
                 if SHOW_VIEW:
                     cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
+                # send data to recognition
                 with recognition_state.get_lock():
                     if not recognition_state.value:
                         recognition_state.value = 1
                         image_queue.put((gray[y:y+h, x:x+w], (x, y, w, h)))
-
-                # name = "unknown"
-                # conf_str = "  0%"
-
-                # if SHOW_VIEW:
-                #     cv2.putText(img, name, (x+5, y-5), font, 1, (255, 255, 255), 2)
-                #     cv2.putText(img, conf_str, (x+5, y+h-5),
-                #                 font, 1, (255, 255, 0), 1)
 
             if SHOW_VIEW:
                 cv2.imshow('camera', img)
