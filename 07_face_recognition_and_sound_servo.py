@@ -1,3 +1,4 @@
+import os
 import cv2
 import simpleaudio as sa
 import multiprocessing
@@ -8,19 +9,21 @@ import RPi.GPIO as GPIO
 
 
 SHOW_VIEW = False
-USE_DNN = False
+USE_DNN = True
 
-TOP_BUTTON = 23
-BOTTOM_BUTTON = 22
+BASE_PATH = os.path.split(__file__)[0]
 
 
 def recognize_face(queue, recognition_state):
-    wave_hi_alex = sa.WaveObject.from_wave_file("sounds/hi_alex.wav")
-    wave_hi_agniia = sa.WaveObject.from_wave_file("sounds/hi_agniia.wav")
-    wave_hi_anna = sa.WaveObject.from_wave_file("sounds/hi_anna.wav")
+    wave_hi_alex = sa.WaveObject.from_wave_file(
+        os.path.join(BASE_PATH, "sounds/hi_alex.wav"))
+    wave_hi_agniia = sa.WaveObject.from_wave_file(
+        os.path.join(BASE_PATH, "sounds/hi_agniia.wav"))
+    wave_hi_anna = sa.WaveObject.from_wave_file(
+        os.path.join(BASE_PATH, "sounds/hi_anna.wav"))
 
     recognizer = cv2.face.LBPHFaceRecognizer_create()
-    recognizer.read('./trainer/trainer.yml')
+    recognizer.read(os.path.join(BASE_PATH, 'trainer/trainer.yml'))
     names = ['Alex', 'Agniia', 'Anna']
 
     while 1:
@@ -43,7 +46,7 @@ def recognize_face(queue, recognition_state):
                 wave_hi_agniia.play().wait_done()
             elif name == 'Anna':
                 wave_hi_anna.play().wait_done()
-
+        time.sleep(3)
         # unlock recognition state
         with recognition_state.get_lock():
             recognition_state.value = 0
@@ -70,10 +73,15 @@ def find_face_dnn(img, net, conf_threshold):
 
 
 def prepare_servo(servos_kit):
+    TOP_BUTTON = 23
+    BOTTOM_BUTTON = 22
+
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(TOP_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     GPIO.setup(BOTTOM_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     servos_kit.continuous_servo[2].throttle = 0.3
+    servos_kit._pca.channels[4].duty_cycle = 0xff
+    servos_kit._pca.channels[5].duty_cycle = 0x6ff
 
     try:
         while 1:
@@ -105,17 +113,18 @@ def process_servo(face_pos):
     count = 0
     cur_pos = [640./2., 480. / 2.]
     tau = 0.2
-    show_fps = True
-        
+    show_fps = False
+
     while 1:
         cur_time = time.time()
         duration = cur_time - past_time
 
+        # make all operation at 30 HZ:
         if duration >= period:
             past_time = cur_time - duration % period
             with face_pos.get_lock():
                 pos = (face_pos[0], face_pos[1])
-            
+
             cur_pos[0] += (pos[0] - cur_pos[0]) * duration/tau
             cur_pos[1] += (pos[1] - cur_pos[1]) * duration/tau
             move_servo(servos_kit, cur_pos)
@@ -124,13 +133,13 @@ def process_servo(face_pos):
         else:
             time.sleep(period - duration)
 
+        # show servo fps
         if show_fps:
             duration = cur_time - fps_start_time
             if duration >= 1.:
                 print(f'servo_fps:{count}')
                 count = 0
                 fps_start_time = cur_time - duration % 1.
-            
 
 
 def main():
@@ -146,15 +155,17 @@ def main():
     face_pos[0] = int(640 / 2)
     face_pos[1] = int(480 / 2)
 
-    servo_proc = multiprocessing.Process(target=process_servo, args=(face_pos, ))
+    servo_proc = multiprocessing.Process(
+        target=process_servo, args=(face_pos, ))
     servo_proc.start()
 
     if not USE_DNN:
-        faceCascade = cv2.CascadeClassifier(
-            "./haarcascade_frontalface_default.xml")
+        faceCascade = cv2.CascadeClassifier(os.path.join(
+            BASE_PATH, "haarcascade_frontalface_default.xml"))
     else:
-        modelFile = "models/res10_300x300_ssd_iter_140000_fp16.caffemodel"
-        configFile = "models/deploy.prototxt"
+        modelFile = os.path.join(
+            BASE_PATH, "models/res10_300x300_ssd_iter_140000_fp16.caffemodel")
+        configFile = os.path.join(BASE_PATH, "models/deploy.prototxt")
         net = cv2.dnn.readNetFromCaffe(configFile, modelFile)
         conf_threshold = 0.7
 
@@ -171,6 +182,7 @@ def main():
     process_timeout = 1./cam_fps
     past_process_time = past_fps_time
     readed_frames = 0
+    show_fps = False
 
     while True:
         _, img = cam.read()
@@ -207,14 +219,16 @@ def main():
 
             if SHOW_VIEW:
                 cv2.imshow('camera', img)
-            frames += 1
+
+            if show_fps:
+                frames += 1
 
             if SHOW_VIEW:
                 k = cv2.waitKey(1) & 0xff  # Press 'ESC' for exiting video
                 if k == 27:
                     break
 
-        if cur_time - past_fps_time >= 1:
+        if show_fps and cur_time - past_fps_time >= 1:
             print(f'fps:{frames} reads:{readed_frames}')
             past_fps_time = cur_time
             frames = 0
