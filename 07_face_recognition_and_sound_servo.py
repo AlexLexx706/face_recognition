@@ -6,6 +6,7 @@ import ctypes
 import time
 from adafruit_servokit import ServoKit
 import RPi.GPIO as GPIO
+import commands_protocol
 
 
 SHOW_VIEW = False
@@ -142,6 +143,34 @@ def process_servo(face_pos):
                 fps_start_time = cur_time - duration % 1.
 
 
+def process_box():
+    buttons_sounds = {
+        i: sa.WaveObject.from_wave_file(
+            os.path.join(BASE_PATH, f"sounds/buttons/{i + 1}.wav")) for i in range(9)}    
+
+    # create protocol object and activate buttons states
+    protocol = commands_protocol.Protocol()
+    protocol.start(port='/dev/ttyUSB0')
+    time.sleep(10)
+    protocol.activate_state_stream()
+    time.sleep(1)
+    
+    prev_buttons_state = protocol.state.value & 0b111111111
+    # checks buttons
+    while 1:
+        cur_buttons_state = protocol.state.value & 0b111111111
+        
+        # buttons pressed
+        if cur_buttons_state != prev_buttons_state:
+            for i in range(9):
+                mask = 1 << i
+                if cur_buttons_state & mask and (not prev_buttons_state & mask):
+                    print(f'play btn:{i}')
+                    buttons_sounds[i].play()
+                    
+        prev_buttons_state = cur_buttons_state
+        time.sleep(0.1)
+
 def main():
     image_queue = multiprocessing.Queue(1)
     recognition_state = multiprocessing.Value(ctypes.c_int, 0, lock=True)
@@ -149,6 +178,11 @@ def main():
     recognition_proc = multiprocessing.Process(
         target=recognize_face, args=(image_queue, recognition_state))
     recognition_proc.start()
+
+    box_proc = multiprocessing.Process(
+        target=process_box)
+    box_proc.start()
+
 
     face_pos = multiprocessing.Value(
         ctypes.c_int * 2, lock=True)
