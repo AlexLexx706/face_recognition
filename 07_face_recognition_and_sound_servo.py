@@ -150,7 +150,7 @@ def process_servo(face_pos):
         if show_fps:
             duration = cur_time - fps_start_time
             if duration >= 1.:
-                LOG.debug(f'servo_fps:{count}')
+                LOG.debug('servo_fps:%s', count)
                 count = 0
                 fps_start_time = cur_time - duration % 1.
 
@@ -177,7 +177,7 @@ def process_box():
             for i in range(9):
                 mask = 1 << i
                 if cur_buttons_state & mask and (not prev_buttons_state & mask):
-                    LOG.debug(f'play btn:{i}')
+                    LOG.debug('play btn:%s', i)
                     buttons_sounds[i].play()
 
         prev_buttons_state = cur_buttons_state
@@ -275,7 +275,7 @@ def main():
                     break
 
         if show_fps and cur_time - past_fps_time >= 1:
-            LOG.debug(f'fps:{frames} reads:{readed_frames}')
+            LOG.debug('fps:%s reads:%s', frames, readed_frames)
             past_fps_time = cur_time
             frames = 0
             readed_frames = 0
