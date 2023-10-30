@@ -7,6 +7,9 @@ import time
 from adafruit_servokit import ServoKit
 import RPi.GPIO as GPIO
 import commands_protocol
+import logging
+
+LOG = logging.getLogger(__name__)
 
 
 SHOW_VIEW = False
@@ -101,8 +104,17 @@ def move_servo(servos_kit, pos):
     k_y = (pos[1]) / 480
     v_angle = int((180 - 30) * k_x + 30)
     h_angle = int((180 - 30) * k_y + 30)
-    servos_kit.servo[0].angle = v_angle
-    servos_kit.servo[1].angle = h_angle
+    try:
+        servos_kit.servo[0].angle = v_angle
+    except ValueError:
+        LOG.warning(
+            "v_angle:%s out of range: 0..%s", v_angle, servos_kit.servo[0].actuation_range)
+
+    try:
+        servos_kit.servo[1].angle = h_angle
+    except ValueError:
+        LOG.warning(
+            "h_angle:%s out of range: 0..%s", h_angle, servos_kit.servo[1].actuation_range)
 
 
 def process_servo(face_pos):
@@ -138,7 +150,7 @@ def process_servo(face_pos):
         if show_fps:
             duration = cur_time - fps_start_time
             if duration >= 1.:
-                print(f'servo_fps:{count}')
+                LOG.debug(f'servo_fps:{count}')
                 count = 0
                 fps_start_time = cur_time - duration % 1.
 
@@ -146,7 +158,7 @@ def process_servo(face_pos):
 def process_box():
     buttons_sounds = {
         i: sa.WaveObject.from_wave_file(
-            os.path.join(BASE_PATH, f"sounds/buttons/{i + 1}.wav")) for i in range(9)}    
+            os.path.join(BASE_PATH, f"sounds/buttons/{i + 1}.wav")) for i in range(9)}
 
     # create protocol object and activate buttons states
     protocol = commands_protocol.Protocol()
@@ -154,22 +166,23 @@ def process_box():
     time.sleep(10)
     protocol.activate_state_stream()
     time.sleep(1)
-    
+
     prev_buttons_state = protocol.state.value & 0b111111111
     # checks buttons
     while 1:
         cur_buttons_state = protocol.state.value & 0b111111111
-        
+
         # buttons pressed
         if cur_buttons_state != prev_buttons_state:
             for i in range(9):
                 mask = 1 << i
                 if cur_buttons_state & mask and (not prev_buttons_state & mask):
-                    print(f'play btn:{i}')
+                    LOG.debug(f'play btn:{i}')
                     buttons_sounds[i].play()
-                    
+
         prev_buttons_state = cur_buttons_state
         time.sleep(0.1)
+
 
 def main():
     image_queue = multiprocessing.Queue(1)
@@ -182,7 +195,6 @@ def main():
     box_proc = multiprocessing.Process(
         target=process_box)
     box_proc.start()
-
 
     face_pos = multiprocessing.Value(
         ctypes.c_int * 2, lock=True)
@@ -263,13 +275,13 @@ def main():
                     break
 
         if show_fps and cur_time - past_fps_time >= 1:
-            print(f'fps:{frames} reads:{readed_frames}')
+            LOG.debug(f'fps:{frames} reads:{readed_frames}')
             past_fps_time = cur_time
             frames = 0
             readed_frames = 0
 
     # Do a bit of cleanup
-    print("\n [INFO] Exiting Program and cleanup stuff")
+    LOG.debug("\n [INFO] Exiting Program and cleanup stuff")
     cam.release()
     cv2.destroyAllWindows()
 

@@ -9,9 +9,9 @@
 `systemctl start sneak.service`
 
 ## enable/disable and reload service
-systemctl enable sneak.service
-systemctl disable sneak.service
-systemctl reload sneak.service
+`systemctl enable sneak.service`
+`systemctl disable sneak.service`
+`systemctl reload sneak.service`
 
 # service file:
-/lib/systemd/system/sneak.service
+`/lib/systemd/system/sneak.service`
