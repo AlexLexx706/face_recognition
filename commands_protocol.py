@@ -33,6 +33,7 @@ class BitsButtons(ctypes.Structure):
     )
     _pack_ = 1
 
+
 class ButtonState(ctypes.Union):
     _fields_ = (
         ('bits', BitsButtons),
@@ -89,6 +90,7 @@ class Protocol:
         self._read_thread = threading.Thread(target=self._read_proc)
         self._stop_event.clear()
         self._read_thread.start()
+        time.sleep(3)
 
     def stop(self):
         """stop protocol

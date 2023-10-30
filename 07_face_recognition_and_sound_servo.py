@@ -9,10 +9,12 @@ import RPi.GPIO as GPIO
 import commands_protocol
 import logging
 from types import SimpleNamespace
+import queue
+import threading
 
 
 LOG = logging.getLogger(__name__)
-
+logging.basicConfig(level=logging.DEBUG)
 
 SHOW_VIEW = False
 USE_DNN = True
@@ -82,7 +84,7 @@ class EyesProcessor:
     TOP_BUTTON = 23
     BOTTOM_BUTTON = 22
 
-    FREQUENCE = 30  # frequence of main loop
+    FREQUENCE = 20  # frequence of main loop
     TAU = 0.2  # control speed of servo
 
     SHOW_FPS = False
@@ -201,6 +203,8 @@ def process_servo(face_pos: object):
 
 
 def process_box():
+    sleep_before_play = 0.5
+
     buttons_sounds = {
         i: sa.WaveObject.from_wave_file(
             os.path.join(BASE_PATH, f"sounds/buttons/{i + 1}.wav")) for i in range(9)}
@@ -208,22 +212,35 @@ def process_box():
     # create protocol object and activate buttons states
     protocol = commands_protocol.Protocol()
     protocol.start(port='/dev/ttyUSB0')
-    time.sleep(10)
     protocol.activate_state_stream()
-    time.sleep(1)
+
+    def bottons_speaker(buttons_queue):
+        last_time = time.time()
+        while 1:
+            num = buttons_queue.get()
+            LOG.debug('play btn:%s', num)
+
+            # sleep if no buttons pressed before
+            if time.time() - last_time > sleep_before_play:
+                time.sleep(sleep_before_play)
+
+            buttons_sounds[num].play().wait_done()
+            last_time = time.time()
+
+    buttons_queue = queue.Queue()
+    thread = threading.Thread(target=bottons_speaker, args=(buttons_queue,))
+    thread.start()
 
     prev_buttons_state = protocol.state.value & 0b111111111
     # checks buttons
     while 1:
         cur_buttons_state = protocol.state.value & 0b111111111
-
         # buttons pressed
         if cur_buttons_state != prev_buttons_state:
             for i in range(9):
                 mask = 1 << i
                 if cur_buttons_state & mask and (not prev_buttons_state & mask):
-                    LOG.debug('play btn:%s', i)
-                    buttons_sounds[i].play()
+                    buttons_queue.put(i)
 
         prev_buttons_state = cur_buttons_state
         time.sleep(0.1)
