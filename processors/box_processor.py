@@ -41,11 +41,11 @@ class BoxProcessor:
             LOG.debug('play btn:%s', num)
 
             # sleep if no buttons pressed before
-            if time.time() - last_time > self.SLEEP_BEFORE_PLAY:
+            if (time.time() - last_time) > self.SLEEP_BEFORE_PLAY:
                 time.sleep(self.SLEEP_BEFORE_PLAY)
 
             self._buttons_sounds[num].play().wait_done()
-            last_time = time.time
+            last_time = time.time()
 
     def process(self):
         """checks buttons states changed

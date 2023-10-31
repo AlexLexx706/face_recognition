@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import queue
 import threading
 from processors import eyes_processor
-from processors import box_processor
+from processors.box_processor import BoxProcessor
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -91,7 +91,8 @@ def process_servo(face_pos: object):
 def process_box():
     """process box states
     """
-    processor = box_processor.BoxProcessor()
+    BoxProcessor.BASE_PATH = BASE_PATH
+    processor = BoxProcessor()
     processor.process()
 
 
