@@ -20,6 +20,16 @@ USE_DNN = True
 
 BASE_PATH = os.path.split(__file__)[0]
 
+IMAGES_PATH = "./images"
+
+def create_directory(directory):
+   try:
+      os.makedirs(directory)
+      LOG.debug(f"Directory '{directory}' created successfully")
+   except OSError as e:
+      LOG.exception(f"Error: {e}")
+
+
 
 def recognize_face(queue, recognition_state):
     wave_hi_alex = sa.WaveObject.from_wave_file(
@@ -33,6 +43,8 @@ def recognize_face(queue, recognition_state):
     recognizer.read(os.path.join(BASE_PATH, 'trainer/trainer.yml'))
     names = ['Alex', 'Agniia', 'Anna']
 
+    create_directory(IMAGES_PATH)
+
     while 1:
         data = queue.get()
         if data is None:
@@ -43,7 +55,7 @@ def recognize_face(queue, recognition_state):
         conf_str = "  0%"
 
         # Check if confidence is less them 100 ==> "0" is perfect match
-        if (confidence < 100):
+        if (confidence > 80):
             name = names[id]
             conf_str = "  {0}%".format(round(100 - confidence))
 
@@ -53,6 +65,12 @@ def recognize_face(queue, recognition_state):
                 wave_hi_agniia.play().wait_done()
             elif name == 'Anna':
                 wave_hi_anna.play().wait_done()
+
+            if name in names:
+                img_path = os.path.join(IMAGES_PATH, "last_recognition.jpg")
+                LOG.debug(f"name:{name} names:{names} confidence:{confidence} img_path:{img_path}")
+                cv2.imwrite(img_path, gray)
+
         time.sleep(3)
         # unlock recognition state
         with recognition_state.get_lock():
